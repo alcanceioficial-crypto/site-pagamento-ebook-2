@@ -1,76 +1,72 @@
 <?php
-header("Content-Type: application/json");
 
-// SUA API KEY DO ASAAS - SANDBOX
-$api_key = "aact_hmlg_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OjgwNGNiMGNmLWQ1MzgtNGI4OC04MzZjLWUwZDE2ZGQxNDUzZjo6JGFhY2hfYWU0ZWIwNWQtNGQ5MS00ZGRmLTg5OTAtMjViMzczNDJkYjhj";
+$apiKey = "aact_hmlg_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OjgwNGNiMGNmLWQ1MzgtNGI4OC04MzZjLWUwZDE2ZGQxNDUzZjo6JGFhY2hfYWU0ZWIwNWQtNGQ5MS00ZGRmLTg5OTAtMjViMzczNDJkYjhj"; // trocar!
 
-// 🔹 Criar um cliente fictício para teste
-$clienteData = [
-    "name" => "Cliente Teste",
-    "cpfCnpj" => "12345678909",
-    "email" => "teste@exemplo.com",
-    "phone" => "11999999999"
-];
-
-$curl = curl_init();
-
-curl_setopt_array($curl, [
-    CURLOPT_URL => "https://sandbox.asaas.com/api/v3/customers",
-    CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_POST => true,
-    CURLOPT_POSTFIELDS => http_build_query($clienteData),
-    CURLOPT_HTTPHEADER => [
-        "access_token: $api_key",
-        "Content-Type: application/x-www-form-urlencoded"
-    ]
-]);
-
-$response = curl_exec($curl);
-$cliente = json_decode($response, true);
-
-if (isset($cliente["errors"])) {
-    echo json_encode(["error" => "Erro ao criar cliente: " . $cliente["errors"][0]["description"]]);
-    exit;
-}
-
-$customer_id = $cliente["id"];
-
-// 🔹 Criar cobrança PIX
-$paymentData = [
-    "customer" => $customer_id,
+$dados = [
     "billingType" => "PIX",
+    "name" => "Compra de Ebook",
     "value" => 2.00,
-    "dueDate" => date("Y-m-d")
+    "dueDate" => date("Y-m-d"),
 ];
 
-curl_setopt_array($curl, [
-    CURLOPT_URL => "https://sandbox.asaas.com/api/v3/payments",
-    CURLOPT_POSTFIELDS => http_build_query($paymentData)
+$ch = curl_init();
+curl_setopt($ch, CURLOPT_URL, "https://sandbox.asaas.com/api/v3/payments");
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($ch, CURLOPT_POST, true);
+curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($dados));
+curl_setopt($ch, CURLOPT_HTTPHEADER, [
+    "Content-Type: application/json",
+    "access_token: $apiKey"
 ]);
 
-$response = curl_exec($curl);
-$payment = json_decode($response, true);
+$resposta = curl_exec($ch);
+curl_close($ch);
 
-if (isset($payment["errors"])) {
-    echo json_encode(["error" => "Erro ao gerar pagamento: " . $payment["errors"][0]["description"]]);
+$resp = json_decode($resposta, true);
+
+if (isset($resp["errors"])) {
+    echo "<h2>Erro ao gerar PIX:</h2>";
+    print_r($resp);
     exit;
 }
 
-$payment_id = $payment["id"];
+$qrCode = $resp["pixQrCode"]["encodedImage"];
+$payload = $resp["pixQrCode"]["payload"];
+$paymentId = $resp["id"];
+?>
 
-// 🔹 Gerar QR Code
-curl_setopt_array($curl, [
-    CURLOPT_URL => "https://sandbox.asaas.com/api/v3/payments/$payment_id/pixQrCode",
-    CURLOPT_POST => false
-]);
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Pagar via PIX</title>
+    <link rel="stylesheet" href="../estilo.css">
+</head>
+<body>
 
-$response = curl_exec($curl);
-$pix = json_decode($response, true);
+<div class="container">
+    <h1>Escaneie o QR Code</h1>
 
-curl_close($curl);
+    <img src="data:image/png;base64,<?= $qrCode ?>" width="280">
 
-echo json_encode([
-    "qrCode" => $pix["encodedImage"],
-    "copiaCola" => $pix["payload"]
-]);
+    <p>Código copia e cola:</p>
+    <textarea rows="3" style="width:100%;"><?= $payload ?></textarea>
 
+    <p>Aguardando pagamento...</p>
+
+    <script>
+        setInterval(() => {
+            fetch("retorno_pix.php?id=<?= $paymentId ?>")
+                .then(r => r.text())
+                .then(status => {
+                    if (status === "CONFIRMED") {
+                        window.location.href = "../baixar.php";
+                    }
+                });
+        }, 3000);
+    </script>
+
+</div>
+
+</body>
+</html>
