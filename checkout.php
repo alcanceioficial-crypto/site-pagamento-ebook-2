@@ -1,47 +1,24 @@
-<?php
-// CONFIGURAÇÕES ASAAS
-$apiKey = "SUA_CHAVE_SANDBOX_AQUI"; 
-$apiURL = "https://sandbox.asaas.com/api/v3/payments";
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Gerar PIX</title>
+    <link rel="stylesheet" href="estilo.css">
+</head>
+<body>
 
-// Dados da cobrança
-$data = [
-    "billingType" => "PIX",
-    "value" => 2.00,
-    "description" => "Compra Ebook",
-    "dueDate" => date("Y-m-d"),
-];
+<div class="container">
+    <h1>Pagamento via PIX</h1>
 
-// Requisição CURL
-$curl = curl_init();
-curl_setopt_array($curl, [
-    CURLOPT_URL => $apiURL,
-    CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_POST => true,
-    CURLOPT_POSTFIELDS => json_encode($data),
-    CURLOPT_HTTPHEADER => [
-        "Content-Type: application/json",
-        "access_token: $apiKey"
-    ],
-]);
+    <form action="api/criar_pagamento.php" method="POST">
+        <button class="botao">Gerar PIX</button>
+    </form>
 
-$response = curl_exec($curl);
-curl_close($curl);
+</div>
 
-$result = json_decode($response, true);
+</body>
+</html>
 
-// Se der erro
-if(isset($result["errors"])) {
-    echo "<pre>";
-    print_r($result);
-    echo "</pre>";
-    exit;
-}
-
-// ID da cobrança
-$paymentId = $result["id"];
-
-// Redireciona para tela do QR Code
-header("Location: retorno.php?id=" . $paymentId);
 exit;
 
 ?>
